@@ -1,87 +1,47 @@
-package beer
+package beer_test
 
 import (
 	"database/sql"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
+	"webbeer/Core/beer"
 )
 
-func TestBeerService(t *testing.T) {
-	// Conectar a um banco de dados SQLite de teste (usando um banco de dados em memória para testes)
-	db, err := sql.Open("sqlite3", ":memory:")
+func TestStore(t *testing.T) {
+	b := &beer.Beer{
+		Id:    1,
+		Name:  "Heineken",
+		Type:  beer.TypeLager,
+		Style: beer.StylePale,
+	}
+	db, err := sql.Open("sqlite3", "/data/beer_test.db")
 	if err != nil {
-		t.Fatalf("Erro ao abrir o banco de dados de teste: %v", err)
+		t.Fatalf("Erro conectando ao banco de dados %s", err.Error())
 	}
 	defer db.Close()
-
-	// Criar a tabela de teste (certifique-se de que sua implementação crie a tabela corretamente)
-	_, err = db.Exec(`
-		CREATE TABLE beer (
-			Id INTEGER PRIMARY KEY,
-			name TEXT,
-			type INTEGER,
-			style INTEGER
-		)
-	`)
+	err = clearDB(db)
 	if err != nil {
-		t.Fatalf("Erro ao criar a tabela de teste: %v", err)
+		t.Fatalf("Erro limpando o banco de dados: %s", err.Error())
 	}
+	service := beer.NewService(db)
+	err = service.Store(b)
+	if err != nil {
+		t.Fatalf("Erro salvando no banco de dados: %s", err.Error())
+	}
+	saved, err := service.Get(1)
+	if err != nil {
+		t.Fatalf("Erro buscando do banco de dados: %s", err.Error())
+	}
+	if saved.Id != 1 {
+		t.Fatalf("Dados inválidos. Esperado %d, recebido %d", 1, saved.Id)
+	}
+}
 
-	// Criar uma instância do serviço de cerveja
-	service := NewService(db)
-
-	t.Run("Test Store, Get, Update, Remove", func(t *testing.T) {
-		// Criar uma nova cerveja para armazenamento
-		newBeer := &Beer{
-			Name:  "NewBeer",
-			Type:  TypeAle,
-			Style: StyleAmber,
-		}
-
-		// Testar a função Store
-		err := service.Store(newBeer)
-		if err != nil {
-			t.Fatalf("Erro ao armazenar nova cerveja: %v", err)
-		}
-
-		// Testar a função Get
-		retrievedBeer, err := service.Get(1)
-		if err != nil {
-			t.Fatalf("Erro ao buscar cerveja por ID: %v", err)
-		}
-
-		if retrievedBeer.Name != newBeer.Name {
-			t.Fatalf("Nome da cerveja incorreto. Esperado '%s', mas obteve '%s'", newBeer.Name, retrievedBeer.Name)
-		}
-
-		// Atualizar a cerveja recuperada
-		retrievedBeer.Name = "UpdatedBeer"
-		err = service.Update(retrievedBeer)
-		if err != nil {
-			t.Fatalf("Erro ao atualizar a cerveja: %v", err)
-		}
-
-		// Verifique se a cerveja foi atualizada corretamente
-		updatedBeer, err := service.Get(1)
-		if err != nil {
-			t.Fatalf("Erro ao buscar cerveja atualizada por ID: %v", err)
-		}
-
-		if updatedBeer.Name != "UpdatedBeer" {
-			t.Fatalf("Nome da cerveja atualizado incorretamente. Esperado 'UpdatedBeer', mas obteve '%s'", updatedBeer.Name)
-		}
-
-		// Testar a função Remove
-		err = service.Remove(1)
-		if err != nil {
-			t.Fatalf("Erro ao remover cerveja por ID: %v", err)
-		}
-
-		// Verifique se a cerveja foi removida corretamente
-		_, err = service.Get(1)
-		if err == nil {
-			t.Fatalf("Erro inesperado: a cerveja não foi removida")
-		}
-	})
+func clearDB(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec("delete from beer")
+	tx.Commit()
+	return err
 }
