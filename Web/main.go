@@ -2,12 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 	"webbeer/Core/beer"
+	"webbeer/Web/handlers"
 
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
@@ -20,17 +20,16 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
-
 	service := beer.NewService(db)
 	r := mux.NewRouter()
-	//handlers
-
+	//middlewares - código que vai ser executado em todas as requests
+	//aqui podemos colocar logs, inclusão e validação de cabeçalhos, etc
 	n := negroni.New(
 		negroni.NewLogger(),
 	)
-	r.Handle("/v1/beer", n.With(
-		negroni.Wrap(hello(service)),
-	)).Methods("GET", "OPTIONS")
+	//handlers
+	handlers.MakeBeerHandlers(r, n, service)
+
 	http.Handle("/", r)
 
 	srv := &http.Server{
@@ -45,13 +44,4 @@ func main() {
 		log.Fatal(err)
 	}
 
-}
-
-func hello(service beer.UseCase) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		books, _ := service.GetAll()
-		for _, b := range books {
-			fmt.Println(b)
-		}
-	})
 }

@@ -93,6 +93,7 @@ func (s *Service) Store(b *Beer) error {
 	tx.Commit()
 	return nil
 }
+
 func (s *Service) Update(b *Beer) error {
 	if b.Id == 0 {
 		//podemos também retornar um erro de aplicação
